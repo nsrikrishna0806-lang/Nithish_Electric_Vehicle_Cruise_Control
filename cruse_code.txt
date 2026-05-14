@@ -1,0 +1,77 @@
+clc;
+clear;
+close all;
+num = 1;
+den = [5 1];
+G = tf(num, den);
+figure;
+step(G);
+grid on;
+title('Open Loop Vehicle Speed Response');
+disp('Open Loop Performance:')
+disp(stepinfo(G))
+Kp = 2.5;
+Ki = 0.6;
+Kd = 0;
+C = pid(Kp,Ki,Kd);
+sys = feedback(C*G,1);
+figure;
+step(sys);
+grid on;
+title('Closed Loop Cruise Control Response');
+info = stepinfo(sys);
+disp('Closed Loop Performance:')
+disp(info)
+fprintf('Rise Time = %.2f sec\n', info.RiseTime);
+fprintf('Settling Time = %.2f sec\n', info.SettlingTime);
+fprintf('Overshoot = %.2f %%\n', info.Overshoot);
+ss_error = abs(1 - dcgain(sys));
+fprintf('Steady State Error = %.4f\n', ss_error);
+t = 0:0.1:30;
+u = ones(size(t));
+d = zeros(size(t));
+d(t>=10) = -0.15;
+[y1,t] = lsim(sys,u,t);
+[y2,t] = lsim(sys,u+d,t);
+figure;
+plot(t,y1,'--','LineWidth',1.5); hold on;
+plot(t,y2,'LineWidth',2);
+xline(10,'--','Slope Introduced');
+grid on;
+legend('Without Disturbance','With Slope');
+xlabel('Time (s)');
+ylabel('Vehicle Speed');
+title('Disturbance Rejection');
+figure;
+step(G,'r',sys,'b');
+grid on;
+legend('Open Loop','PI Controlled');
+title('Open Loop vs Controlled');
+figure;
+[y,t2] = step(sys,t);
+e = 1-y;
+u_control = Kp*e + Ki*cumtrapz(t2,e);
+plot(t2,u_control,'LineWidth',2);
+grid on;
+xlabel('Time (s)');
+ylabel('Throttle Control');
+title('Control Effort');
+saveas(figure(1),'open_loop.png');
+saveas(figure(2),'closed_loop.png');
+saveas(figure(3),'disturbance.png');
+saveas(figure(4),'comparison.png');
+saveas(figure(5),'control_effort.png');
+Kp_values = [1.5 2.5 3.5];
+figure;
+hold on;
+for k = Kp_values
+    C_test = pid(k, Ki, 0);
+    sys_test = feedback(C_test*G,1);
+    step(sys_test,30);
+end
+grid on;
+legend('Kp = 1.5','Kp = 2.5','Kp = 3.5');
+title('Controller Tuning Comparison');
+xlabel('Time (s)');
+ylabel('Vehicle Speed');
+saveas(gcf,'tuning_comparison.png');
